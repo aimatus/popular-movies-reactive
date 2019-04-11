@@ -2,7 +2,6 @@ package com.aimatus.popularmoviesreactive
 
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.ViewModel
-import android.util.Log
 import com.google.gson.Gson
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -11,30 +10,29 @@ import io.reactivex.schedulers.Schedulers
 
 class MainActivityViewModel : ViewModel() {
 
-    private val tag = this::class.java.canonicalName
     private val compositeDisposable = CompositeDisposable()
     val selectedMovie = MutableLiveData<String>()
 
     init {
-        getPopularMovies()
+        loadPopularMovies()
     }
 
-    private fun getPopularMovies() {
+    private fun loadPopularMovies() {
         val disposable = Observable
             .fromCallable { NetworkUtils.getPopularMovies() }
             .subscribeOn(Schedulers.io())
+            .observeOn(Schedulers.computation())
+            .map { popularMoviesResponse -> getPopularMoviesResults(popularMoviesResponse) }
             .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext { popularMoviesResponse -> Log.i(tag, popularMoviesResponse) }
-            .subscribeOn(Schedulers.computation())
-            .map { popularMoviesResponse ->
-                val popularMovies = Gson().fromJson(popularMoviesResponse, MoviesResponse::class.java)
-                popularMovies.results
-            }
             .subscribe { popularMoviesResponse ->
-                Log.i(tag, popularMoviesResponse?.get(0)?.originalTitle)
                 selectedMovie.value = popularMoviesResponse?.get(0)?.originalTitle
             }
         compositeDisposable.add(disposable)
+    }
+
+    private fun getPopularMoviesResults(popularMoviesResponse: String): List<Movie>? {
+        val popularMovies = Gson().fromJson(popularMoviesResponse, MoviesResponse::class.java)
+        return popularMovies.results
     }
 
     override fun onCleared() {

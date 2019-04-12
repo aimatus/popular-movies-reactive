@@ -7,6 +7,7 @@ import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import java.util.concurrent.TimeUnit
 
 class MainActivityViewModel : ViewModel() {
 
@@ -20,13 +21,16 @@ class MainActivityViewModel : ViewModel() {
     private fun loadPopularMovies() {
         val disposable = Observable
             .fromCallable { NetworkUtils.getPopularMovies() }
+            .timeout(3, TimeUnit.SECONDS)
             .subscribeOn(Schedulers.io())
             .observeOn(Schedulers.computation())
             .map { popularMoviesResponse -> getPopularMoviesResults(popularMoviesResponse) }
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { popularMoviesResponse ->
+            .subscribe({ popularMoviesResponse ->
                 selectedMovie.value = popularMoviesResponse?.get(0)?.originalTitle
-            }
+            }, {
+                selectedMovie.value = "Network error :("
+            })
         compositeDisposable.add(disposable)
     }
 
